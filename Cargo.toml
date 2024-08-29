@@ -1,0 +1,12 @@
+[package]
+name = "serumcv"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+v4l = { version = "0.14.0", optional = true }
+
+[features]
+# v4l2
+video4linux = ["dep:v4l"]
+linux = ["video4linux"]

@@ -1,0 +1,2 @@
+//
+type Farts = String;
