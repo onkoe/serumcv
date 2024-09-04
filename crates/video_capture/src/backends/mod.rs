@@ -1,5 +1,11 @@
 use crate::{VideoCaptureDescriptor, VideoCaptureStream};
 
+#[cfg_attr(
+    feature = "linux_v4l",
+    cfg(any(target_os = "linux", target_os = "freebsd"))
+)]
+pub mod v4l;
+
 /// A user's selected backend.
 #[expect(clippy::exhaustive_enums, reason = "this enum will never expand")]
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
