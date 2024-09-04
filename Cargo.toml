@@ -17,7 +17,6 @@ license = "MIT"
 
 [dependencies]
 serumcv_video_capture = { path = "./crates/video_capture", optional = true }
-pisserror = "0.2.1"
 
 [features]
 default = ["video_capture"]
@@ -36,10 +35,8 @@ video_capture_web_mediadevices = ["serumcv_video_capture/web_mediadevices"]
 # example deps
 [dev-dependencies]
 anyhow = "1.0.86"
-# image = "0.25.2"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-# criterion = "0.5.1"
 
 # workspace stuff
 [workspace]
@@ -257,7 +254,6 @@ unused_self = "warn"                        # note: this can break object safety
 use_debug = "warn"
 use_self = "deny"
 used_underscore_binding = "deny"
-used_underscore_items = "deny"
 useless_let_if_seq = "warn"
 verbose_bit_mask = "deny"
 verbose_file_reads = "warn"

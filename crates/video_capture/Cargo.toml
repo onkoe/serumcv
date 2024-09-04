@@ -15,7 +15,7 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-pisserror = "0.2.1"
+pisserror = "0.2.3"
 tracing = "^0.1.40"
 
 [dependencies.fraction]
@@ -264,7 +264,6 @@ unused_self = "warn"                        # note: this can break object safety
 use_debug = "warn"
 use_self = "deny"
 used_underscore_binding = "deny"
-used_underscore_items = "deny"
 useless_let_if_seq = "warn"
 verbose_bit_mask = "deny"
 verbose_file_reads = "warn"
