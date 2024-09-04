@@ -1,7 +1,7 @@
 use core::fmt::Display;
 
 /// A video capture device's resolution setting.
-#[expect(clippy::exhaustive_enums)]
+#[allow(clippy::exhaustive_enums)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum ResolutionSetting {
     /// Will use the highest possible resolution for the device.
@@ -65,9 +65,9 @@ impl SpecificResolution {
     }
 }
 
-#[expect(
+#[allow(
     clippy::from_over_into,
-    reason = "You cannot convert a fraction into a resolution as the `fraction` crate automatically simplifies representations."
+    // reason = "You cannot convert a fraction into a resolution as the `fraction` crate automatically simplifies representations."
 )]
 impl Into<fraction::Fraction> for SpecificResolution {
     #[inline]

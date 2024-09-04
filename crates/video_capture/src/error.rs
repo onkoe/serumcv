@@ -1,7 +1,7 @@
 //! Errors for video capture devices and their surrounding operations.
 
-use core::error::Error;
 use pisserror::Error;
+use std::error::Error;
 
 use crate::config::{Format, ResolutionSetting, VideoCaptureImageConfiguration};
 

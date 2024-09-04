@@ -129,7 +129,7 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
         };
 
         // attempt to access the device by path
-        #[expect(clippy::map_err_ignore)]
+        #[allow(clippy::map_err_ignore)]
         // TODO: hey, check the fs error if it doesn't exist or the camera
         // just failed to connect.
         let device = Device::with_path(&path).map_err(|_| ConnectionError::SourceDoesntExist {
@@ -215,7 +215,7 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
         }
 
         // attempt to access the device by path
-        #[expect(clippy::map_err_ignore)]
+        #[allow(clippy::map_err_ignore)]
         // TODO: hey, check the fs error if it doesn't exist or the camera
         // just failed to connect.
         let device = Device::with_path(&path).map_err(|_| ConnectionError::SourceDoesntExist {

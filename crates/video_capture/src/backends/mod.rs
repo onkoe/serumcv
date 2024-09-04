@@ -7,7 +7,7 @@ use crate::{VideoCaptureDescriptor, VideoCaptureStream};
 pub mod v4l;
 
 /// A user's selected backend.
-#[expect(clippy::exhaustive_enums, reason = "this enum will never expand")]
+#[allow(clippy::exhaustive_enums /* , reason = "this enum will never expand" */)]
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum BackendSelection {
     Auto,
