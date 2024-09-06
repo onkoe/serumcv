@@ -39,7 +39,7 @@ where
     where
         Self::Source: 'path;
     type Source;
-    type OwnedSource;
+    type SourceInput;
 
     /// Returns a list of video capture devices, like webcams and cameras, that
     /// are currently connected to the system (according to the backend).
@@ -48,7 +48,7 @@ where
     /// device, completely miss a device, or some other issue.
     ///
     /// If you do encounter such a problem, please report it.
-    fn list_connected_devices() -> Vec<Self::OwnedSource>;
+    fn list_connected_devices() -> Vec<Self::SourceInput>;
 
     /// Returns an identifier for this backend.
     fn backend_type() -> BackendType;

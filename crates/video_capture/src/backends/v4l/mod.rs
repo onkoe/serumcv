@@ -32,11 +32,11 @@ where
 {
     type Descriptor = V4LVideoCaptureDescriptor;
     type Device = V4LVideoCaptureDevice<'path, 'conn>;
-    type Source = &'path Path;
-    type OwnedSource = PathBuf;
+    type Source = source::V4LSource;
+    type SourceInput = PathBuf;
 
     #[inline]
-    fn list_connected_devices() -> Vec<Self::OwnedSource> {
+    fn list_connected_devices() -> Vec<Self::SourceInput> {
         // ask v4l for the connected devices, then grab all their paths.
         let mut devices: Vec<_> = v4l::context::enum_devices()
             .iter()
