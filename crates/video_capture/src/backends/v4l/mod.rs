@@ -1,9 +1,13 @@
 //! A Video4Linux 2 capture device backend.
 
-use std::path::{Path, PathBuf};
+extern crate alloc;
 
+use alloc::borrow::Cow;
 use device_info::MediaDeviceInfo;
 use fraction::{Fraction, One};
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 use v4l::io::traits::CaptureStream;
 use v4l::prelude::*;
 use v4l::video::Output;
@@ -18,10 +22,13 @@ use crate::{
     VideoCaptureStream,
 };
 
+pub use source::V4LSource;
+
 use super::Backend;
 
 mod device_info;
 mod framerate;
+mod source;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct V4LBackend;
@@ -90,37 +97,41 @@ impl VideoCaptureDescriptor for V4LVideoCaptureDescriptor {
 
 /// The source for a Video4Linux device. These are always just paths
 /// (at least within this library).
-pub type V4LSource = PathBuf;
+pub type V4LBuffer = UserptrStream;
 
 /// A capture device using the Video4Linux backend.
 pub type V4LVideoCaptureDevice<'path, 'conn> =
-    VideoCapture<V4LVideoCaptureDescriptor, v4l::Device, V4LSource, MmapStream<'conn>>;
+    VideoCapture<V4LVideoCaptureDescriptor, v4l::Device, V4LSource, V4LBuffer>;
 
 impl V4LVideoCaptureDevice<'_, '_> {
     fn source_as_string(&self) -> String {
-        self.source.to_string_lossy().to_string()
+        self.source.user_source_string()
     }
 }
 
-impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice<'path, '_> {
+impl<'path> VideoCaptureConnection<'path, V4LSource> for V4LVideoCaptureDevice<'path, '_> {
     type Source = PathBuf;
 
     #[inline]
     fn new(source: Self::Source) -> Result<Self, ConnectionError> {
-        // fn new(source: impl AsRef<Self::Source>) -> Result<Self, ConnectionError> {
-        //let path = source.as_ref();
-        let path = source;
-        let path_string = path.to_string_lossy().to_string();
+        let path_string = Cow::from(source.to_string_lossy().to_string());
+        tracing::debug!("creating a new Video4Linux capture device at path `{path_string}`...",);
 
-        tracing::debug!("creating a new Video4Linux capture device at path `{path:?}`...",);
+        // compute the necessary paths
+        tracing::trace!("getting media + video source...");
+        let checked_source = V4LSource::new(&source)?;
+        tracing::trace!("made the sources for V4L device! see: `{checked_source:?}`");
 
         // grab device info
+        tracing::trace!("getting media device info...");
         let device_info =
-            MediaDeviceInfo::get(&path).map_err(|e| ConnectionError::CouldntGetDeviceInfo {
-                source: path_string.clone(),
+            MediaDeviceInfo::get(&source).map_err(|e| ConnectionError::CouldntGetDeviceInfo {
+                source: path_string.to_string(),
                 err_msg: e.to_string(),
             })?;
+
         let (device_identifier, device_model) = (device_info.serial(), device_info.model());
+        tracing::trace!("media device info obtained!");
 
         // make info into a descriptor
         let descriptor = V4LVideoCaptureDescriptor {
@@ -129,34 +140,53 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
         };
 
         // attempt to access the device by path
-        #[allow(clippy::map_err_ignore)]
         // TODO: hey, check the fs error if it doesn't exist or the camera
         // just failed to connect.
-        let device = Device::with_path(&path).map_err(|_| ConnectionError::SourceDoesntExist {
-            source: path_string.clone(),
-        })?;
 
-        // make a stream connected to the device
-        // FIXME: this creates a buffer that the user didn't ask for!
-        let mut stream = MmapStream::with_buffers(&device, Type::VideoCapture, 4).map_err(|e| {
-            ConnectionError::CaptureDeviceBusy {
-                source: path_string.clone(),
-                err_msg: e.to_string(),
+        tracing::trace!("creating device...");
+        let device = Device::with_path(&source).map_err(|e| {
+            // check if the file exists
+            match e.kind() {
+                ErrorKind::NotFound => ConnectionError::SourceDoesntExist {
+                    source: path_string.to_string(),
+                },
+                err_kind => ConnectionError::OddIOError {
+                    source: source.display().to_string(),
+                    err_kind,
+                    err_msg: e.to_string(),
+                },
             }
         })?;
+        tracing::trace!("device created!");
 
-        // this performs warm-up or something...
-        // TODO: look at fr v4l docs to see what that means lol
+        tracing::trace!("starting stream...");
+        let mut stream = V4LBuffer::new(&device, Type::VideoCapture).map_err(|e| {
+            // check if the file exists
+            match e.kind() {
+                ErrorKind::NotFound => ConnectionError::SourceDoesntExist {
+                    source: path_string.to_string(),
+                },
+                err => ConnectionError::OddIOError {
+                    source: source.display().to_string(),
+                    err_kind: err,
+                    err_msg: e.to_string(),
+                },
+            }
+        })?;
+        tracing::trace!("stream started!");
+
+        // unused dummy frame to make buggy drivers fill info about the
+        // device's capabilities
         stream.next().map_err(|e| ConnectionError::WarmUpFailed {
-            source: path_string.clone(),
+            source: path_string.to_string(),
             err_msg: e.to_string(),
         })?;
 
         Ok(Self {
             descriptor,
             device,
+            source: checked_source,
             stream,
-            source: path,
         })
     }
 
@@ -173,7 +203,7 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
     #[inline]
     fn disconnect(&mut self) -> Result<(), ConnectionError> {
         self.stream.stop().map_err(|e| ConnectionError::StopError {
-            source: self.source.to_string_lossy().to_string(),
+            source: self.source_as_string(),
             err_msg: e.to_string(),
         })
     }
@@ -181,34 +211,34 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
     #[inline]
     fn reconnect(&mut self) -> Result<(), ConnectionError> {
         // check if we already have a valid stream
-        if self.source.exists() {
+        if self.source.video.exists() && self.source.media.exists() {
             return Err(ConnectionError::AlreadyConnected {
-                source: self.source.clone().to_string_lossy().to_string(),
+                source: self.source_as_string(),
             });
         }
 
-        let path = self.source.clone();
-        let path_string = self.source_as_string();
-
         // grab device info
-        let device_info =
-            MediaDeviceInfo::get(&path).map_err(|e| ConnectionError::CouldntGetDeviceInfo {
-                source: path_string.clone(),
+        let device_info = MediaDeviceInfo::get(&self.source.media).map_err(|e| {
+            ConnectionError::CouldntGetDeviceInfo {
+                source: self.source_as_string(),
                 err_msg: e.to_string(),
-            })?;
+            }
+        })?;
         let (device_identifier, device_model) = (device_info.serial(), device_info.model());
 
+        // see if the device model changed
         if device_model != self.descriptor.device_model {
             return Err(ConnectionError::ReconnectionModelMismatch {
-                source: path_string,
+                source: self.source_as_string(),
                 original: self.descriptor.device_model(),
                 now: device_model,
             });
         }
 
+        // see if the device serial changed
         if device_identifier != self.descriptor.device_identifier {
             return Err(ConnectionError::ReconnectionSerialMismatch {
-                source: path_string,
+                source: self.source_as_string(),
                 original: self.descriptor.device_identifier(),
                 now: device_identifier,
             });
@@ -218,15 +248,17 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
         #[allow(clippy::map_err_ignore)]
         // TODO: hey, check the fs error if it doesn't exist or the camera
         // just failed to connect.
-        let device = Device::with_path(&path).map_err(|_| ConnectionError::SourceDoesntExist {
-            source: self.source_as_string(),
+        let device = Device::with_path(&self.source.video).map_err(|_| {
+            ConnectionError::SourceDoesntExist {
+                source: self.source_as_string(),
+            }
         })?;
 
         // make a stream connected to the device
         // FIXME: this creates a buffer that the user didn't ask for!
         let mut stream = MmapStream::with_buffers(&device, Type::VideoCapture, 4).map_err(|e| {
             ConnectionError::CaptureDeviceBusy {
-                source: path_string.clone(),
+                source: self.source_as_string(),
                 err_msg: e.to_string(),
             }
         })?;
@@ -234,7 +266,7 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
         // this performs warm-up or something...
         // TODO: look at fr v4l docs to see what that means lol
         stream.next().map_err(|e| ConnectionError::WarmUpFailed {
-            source: path_string,
+            source: self.source_as_string(),
             err_msg: e.to_string(),
         })?;
 
@@ -242,7 +274,7 @@ impl<'path> VideoCaptureConnection<'path, &'path Path> for V4LVideoCaptureDevice
     }
 }
 
-impl<'path, 'conn> VideoCaptureStream<'path, 'conn, &'path Path>
+impl<'path, 'conn> VideoCaptureStream<'path, 'conn, V4LSource>
     for V4LVideoCaptureDevice<'path, 'conn>
 where
     'path: 'conn,
@@ -250,7 +282,8 @@ where
     // FIXME: this isn't actually a buffer. it contains one!
     // consider swapping to some other construct..?
     type Buffer = MmapStream<'conn>;
-    type Source = &'path Path;
+    type Source = V4LSource;
+    type SourceInput = &'path Path;
     type Metadata = v4l::buffer::Metadata;
 
     #[inline]
@@ -261,26 +294,13 @@ where
         'path: 'func,
     {
         self.stream.next().map_err(|e| UsageError::IoError {
-            source: self.source.to_string_lossy().to_string(),
+            source: self.source.user_source_string(),
             err_msg: e.to_string(),
         })
     }
 }
 
 impl VideoCaptureConfiguration for V4LVideoCaptureDevice<'_, '_> {
-    // fn fourcc(&self) -> Result<crate::config::Format, crate::error::VideoCaptureConfigError> {
-    //     todo!()
-    // }
-
-    // fn resolution(
-    //     &mut self,
-    // ) -> Result<crate::config::SpecificResolution, crate::error::VideoCaptureConfigError> {
-    //     // let fourcc = self.device.
-    //     // self.device.enum_framesizes(fourcc)
-
-    //     todo!()
-    // }
-
     #[inline]
     fn supported_image_configurations(&self) -> Result<Vec<ImageConfiguration>, ConfigError> {
         let no_cfgs_err = |e: std::io::Error| ConfigError::DeviceDoesntListConfigurations {

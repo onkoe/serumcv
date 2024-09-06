@@ -16,6 +16,15 @@ pub enum VideoCaptureConnectionError {
     #[error("The given source (`{source}`) does not exist or does not contain a capture device.")]
     SourceDoesntExist { source: String },
 
+    #[error(
+        "Got an unexpected IO error when attempting to create the source at {source}. Code `{err_kind}`, err: `{err_msg}`"
+    )]
+    OddIOError {
+        source: String,
+        err_kind: std::io::ErrorKind,
+        err_msg: String,
+    },
+
     /// Only use this variant with the `new_first` or similar methods.
     #[error("The backend did not find any video capture devices.")]
     NoCaptureDevices,
