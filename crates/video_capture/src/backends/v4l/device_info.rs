@@ -1,4 +1,4 @@
-use std::{os::fd::AsRawFd, path::Path};
+use std::{fs, io, os::fd::AsRawFd, path::Path};
 
 use core::ffi::{c_char, CStr};
 
@@ -19,21 +19,21 @@ pub(super) struct MediaDeviceInfo {
     reserved: [u32; 31],
 }
 
-const MEDIA_IOC_DEVICE_INFO: u8 = 0x00;
-const IOCTL_MEDIA_COMMAND: u8 = b'|';
+const MEDIA_IOC_DEVICE_INFO_SEQ_NUM: u8 = 0x00;
+const IOCTL_MEDIA_COMMAND_IDENT: u8 = b'|';
 
 // call `media_ioc_device_info` to execute the `ioctl`
 ioctl_readwrite!(
     media_ioc_device_info,
-    IOCTL_MEDIA_COMMAND,
-    MEDIA_IOC_DEVICE_INFO,
+    IOCTL_MEDIA_COMMAND_IDENT,
+    MEDIA_IOC_DEVICE_INFO_SEQ_NUM,
     MediaDeviceInfo
 );
 
 impl MediaDeviceInfo {
     /// Attempts to get information about the media device at the given path.
     #[tracing::instrument]
-    pub(crate) fn get(path: &Path) -> Result<Self, std::io::Error> {
+    pub(crate) fn get(path: &Path) -> Result<Self, io::Error> {
         // create an uninitialized MediaDeviceInfo
         //
         // SAFETY: This is fine since the kernel will write to this zeroed memory.
@@ -41,7 +41,7 @@ impl MediaDeviceInfo {
         tracing::trace!("successfully zeroed media_device_info struct memory");
 
         // grab the file descriptor
-        let file = std::fs::File::open(path)?;
+        let file = fs::File::open(path)?;
         let fd = file.as_raw_fd();
         tracing::trace!(
             "device fd for path `{}` created (`{}`)",
@@ -58,7 +58,6 @@ impl MediaDeviceInfo {
             media_ioc_device_info(fd, &mut info)?;
         }
         tracing::trace!("ioctl `MEDIA_IOC_DEVICE_INFO` completed successfully!");
-
         Ok(info)
     }
 
