@@ -47,7 +47,7 @@ impl Format {
     /// Also, you can pass in byte strings instead of manually creating arrays:
     ///
     /// ```
-    /// use serumcv::video::config::Format;
+    /// use serumcv_video_capture::config::Format;
     ///
     /// let weird_format = Format::new(*b"apch");
     /// ```
