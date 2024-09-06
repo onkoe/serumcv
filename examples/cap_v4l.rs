@@ -9,14 +9,9 @@ fn main() {
         .with_max_level(tracing::Level::TRACE)
         .init();
 
-    // let mut device = v4l::V4LVideoCaptureDevice::new_first().unwrap();
-    //
-    // note: for some reason, my webcam ABSOLUTELY HATES being initialized at /dev/video0.
-    // i MUST use /dev/media0 instead. so here's that hardcoded.
-    //
-    // please swap the lines to use your own webcam :D
-    let mut device = v4l::V4LVideoCaptureDevice::new(PathBuf::from("/dev/media0")).unwrap();
-    device.read_frame().unwrap();
+    let path = String::from("/dev/media0");
+    let mut device = v4l::V4LVideoCaptureDevice::new(PathBuf::from(path)).expect("device creation");
+    device.read_frame().expect("frame read works");
 
     // grab it's image config like so...
     let conf = device.image_configuration().unwrap();
