@@ -13,6 +13,7 @@ use v4l::prelude::*;
 use v4l::video::Output;
 use v4l::{buffer::Type, io::traits::Stream as _};
 
+// TODO: move to internal prelude when back on linux
 use crate::config::{Format, SpecificResolution};
 use crate::{
     config::{VideoCaptureConfiguration, VideoCaptureImageConfiguration as ImageConfiguration},
