@@ -1,10 +1,11 @@
-use std::path::PathBuf;
-
-use serumcv_video_capture::backends::v4l;
-use serumcv_video_capture::prelude::VideoCaptureImageConfiguration as ImageConfig;
-use serumcv_video_capture::prelude::*;
-
+#[cfg(target_os = "linux")]
 fn main() {
+    use std::path::PathBuf;
+
+    use serumcv_video_capture::backends::v4l;
+    use serumcv_video_capture::prelude::VideoCaptureImageConfiguration as ImageConfig;
+    use serumcv_video_capture::prelude::*;
+
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::TRACE)
         .init();
@@ -28,3 +29,6 @@ fn main() {
     // let's hope they're equal!
     assert_eq!(new_conf, real_conf, "this is a very conservative config, so both configurations should be equal for virtually any device");
 }
+
+#[cfg(not(target_os = "linux"))]
+fn main() {}
