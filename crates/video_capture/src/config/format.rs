@@ -63,10 +63,7 @@ impl Format {
     }
 }
 
-#[cfg_attr(
-    feature = "linux_v4l",
-    cfg(any(target_os = "linux", target_os = "freebsd"))
-)]
+#[cfg(all(target_os = "linux", feature = "linux_v4l"))]
 impl From<v4l::Format> for Format {
     #[inline]
     fn from(value: v4l::Format) -> Self {

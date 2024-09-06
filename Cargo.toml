@@ -14,7 +14,6 @@ categories = [
 readme = "README.md"
 license = "MIT"
 
-
 [dependencies]
 serumcv_video_capture = { path = "./crates/video_capture", optional = true }
 

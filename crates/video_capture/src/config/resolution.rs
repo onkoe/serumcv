@@ -86,6 +86,7 @@ impl Display for SpecificResolution {
     }
 }
 
+#[cfg(all(target_os = "linux", feature = "linux_v4l"))]
 impl From<v4l::Format> for SpecificResolution {
     #[inline]
     fn from(value: v4l::Format) -> Self {

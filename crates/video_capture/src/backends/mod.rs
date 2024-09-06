@@ -1,9 +1,6 @@
 use crate::{VideoCaptureDescriptor, VideoCaptureStream};
 
-#[cfg_attr(
-    feature = "linux_v4l",
-    cfg(any(target_os = "linux", target_os = "freebsd"))
-)]
+#[cfg(all(target_os = "linux", feature = "linux_v4l"))]
 pub mod v4l;
 
 /// A user's selected backend.
