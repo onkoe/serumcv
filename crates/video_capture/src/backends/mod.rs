@@ -3,6 +3,12 @@ use crate::{VideoCaptureDescriptor, VideoCaptureStream};
 #[cfg(all(target_os = "linux", feature = "linux_v4l"))]
 pub mod v4l;
 
+#[cfg(all(
+    any(target_os = "macos", target_os = "ios"),
+    feature = "macos_avfoundation"
+))]
+pub mod avfoundation;
+
 /// A user's selected backend.
 #[allow(clippy::exhaustive_enums /* , reason = "this enum will never expand" */)]
 #[derive(Clone, Debug, PartialEq, PartialOrd)]

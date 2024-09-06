@@ -39,6 +39,25 @@ version = "^0.14"
 # features = ["libv4l"]
 optional = true
 
+##### MAC #####
+[dependencies.cidre]
+git = "https://github.com/yury/cidre"
+optional = true
+default-features = false
+features = [
+    "async",
+    "at",
+    "av",
+    "blocks",
+    "dispatch",
+    "mtl",
+    "macos_14_0",
+    "cm",
+    "ios_17_0",
+    "tvos_17_0",
+    "maccatalyst_17_0",
+    "watchos_10_0",
+]
 # feature stuff
 [features]
 default = [
@@ -54,7 +73,7 @@ linux_v4l = [
     "dep:v4l",
     "dep:nix",
 ] # this works for linux (and also freebsd if using video4bsd)
-macos_avfoundation = []
+macos_avfoundation = ["dep:cidre"]
 windows_mediafoundation = []
 windows_directshow = []
 web_mediadevices = []
