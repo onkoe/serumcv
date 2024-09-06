@@ -80,11 +80,16 @@ where
     /// A buffer type which the stream will write into.
     type Buffer;
 
+    /// The internal source type. This should be extremely stable, utilizing
+    /// all possible methods to uniquely identify a device that a backend
+    /// provides.
+    type Source;
+
     /// The source input type that a stream will take by default.
     ///
     /// Note that this should NEVER be an index. Always require some unique
     /// identifier to connect to a capture device.
-    type Source;
+    type SourceInput;
 
     /// A backend's frame type.
     type Metadata;
