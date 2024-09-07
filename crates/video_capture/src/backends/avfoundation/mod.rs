@@ -126,13 +126,34 @@ impl Connection<'_, AvSource> for AvVideoCaptureDevice {
     type Source = AvDescriptor;
 
     #[inline]
-    fn new(source: Self::Source) -> Result<Self, ConnectionError> {
-        todo!()
+    fn new(source: AvDescriptor) -> Result<Self, ConnectionError> {
+        let device = AvBackend::discovery()
+            .devices()
+            .iter()
+            .find(|device| device.unique_id().to_string() == source.device_identifier())
+            .ok_or_else(|| ConnectionError::SourceDoesntExist {
+                source: source.device_identifier(),
+            })?
+            .retained();
+
+        Self::setup(device, source)
     }
 
     #[inline]
     fn new_first() -> Result<Self, ConnectionError> {
-        todo!()
+        let device = AvBackend::discovery()
+            .devices()
+            .iter()
+            .next()
+            .ok_or(ConnectionError::NoCaptureDevices)?
+            .retained();
+
+        let source = AvDescriptor {
+            device_identifier: device.unique_id().to_string(),
+            device_model: device.localized_name().to_string(),
+        };
+
+        Self::setup(device, source)
     }
 
     #[inline]
@@ -143,6 +164,41 @@ impl Connection<'_, AvSource> for AvVideoCaptureDevice {
     #[inline]
     fn reconnect(&mut self) -> Result<(), ConnectionError> {
         todo!()
+    }
+}
+
+impl AvVideoCaptureDevice {
+    /// The second part of `new` to avoid duplicating important setup code.
+    ///
+    /// This can be removed if `new` can use a method to find a capture device
+    /// directly instead of having to iterate through all connected devices.
+    fn setup(device: AvDevice, source: AvDescriptor) -> Result<Self, ConnectionError> {
+        // we gotta get a `Port` to then get its `Input`.
+        // after that, we can feed it to the `Session`
+        let input = CaptureDeviceInput::with_device(&device)
+            .map_err(|_e| ConnectionError::SourceDoesntExist {
+                source: source.device_identifier(),
+            })?
+            .autoreleased();
+
+        // create the stream session and add the input
+        let mut session = CidreSession::new();
+        session.add_input(input);
+
+        // ok! now let's make an output buffer.
+        // TODO: make sure this is correct. docs are kinda sparse
+        let mut buffer = VideoDataOutput::new();
+        buffer.set_always_discard_late_video_frames(true); // i don't want them
+        buffer.set_delivers_preview_sized_output_bufs(false); // and please don't give me tiny outputs ;D
+        session.add_output(&buffer);
+        session.start_running();
+
+        Ok(Self {
+            descriptor: source,
+            device,
+            source: (),
+            stream: session,
+        })
     }
 }
 
@@ -171,6 +227,8 @@ where
     where
         'src: 'func,
     {
+        // TODO: figure out some way to get that data out!
+        // maybe use the `cidre::av::sample_buffer` module?
         todo!()
     }
 }
