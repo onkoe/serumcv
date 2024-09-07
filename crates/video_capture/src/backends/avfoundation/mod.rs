@@ -36,12 +36,44 @@ where
 
     #[inline]
     fn list_connected_devices() -> Vec<Self::SourceInput> {
-        todo!()
+        let discovery = Self::discovery();
+        let devices = discovery.devices();
+
+        devices
+            .iter()
+            .map(|device| AvDescriptor {
+                device_identifier: device.unique_id().to_string(),
+                device_model: device.localized_name().to_string(),
+            })
+            .collect::<Vec<_>>()
     }
 
     #[inline]
     fn backend_type() -> super::BackendType {
-        todo!()
+        super::BackendType::AvFoundation
+    }
+}
+
+impl AvBackend {
+    pub(super) fn discovery() -> ReturnedAutoReleased<CaptureDeviceDiscoverySession> {
+        let ar = Array::from_slice(&[
+            DeviceType::external(),
+            DeviceType::built_in_dual_wide_camera(),
+            DeviceType::built_in_telephoto_camera(),
+            DeviceType::built_in_true_depth_camera(),
+            DeviceType::built_in_wide_angle_camera(),
+            DeviceType::continuity_camera(),
+            DeviceType::desk_view_camera(),
+        ])
+        .autoreleased();
+
+        // let devices = av::capture::input::DeviceInput(av::capture::input::Input())
+
+        CaptureDeviceDiscoverySession::with_device_types_media_and_pos_ar(
+            ar,
+            Some(MediaType::video()),
+            CaptureDevicePos::Unspecified,
+        )
     }
 }
 
