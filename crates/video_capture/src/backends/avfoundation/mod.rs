@@ -1,6 +1,19 @@
 //! A SerumCV backend for macOS and general Apple devices.
 
+// TODO: remove this
+#![expect(clippy::todo)]
+
 mod authorization;
+
+use cidre::{
+    arc::{Retained, ReturnedAutoReleased},
+    av::{
+        capture::{session::Session as CidreSession, VideoDataOutput},
+        CaptureDevice as CidreCaptureDevice, CaptureDeviceDiscoverySession, CaptureDeviceInput,
+        CaptureDevicePos, CaptureDeviceType as DeviceType, MediaType,
+    },
+    ns::Array,
+};
 
 use crate::prelude::internal_prelude::*;
 
@@ -19,7 +32,7 @@ where
 
     type Source = AvSource;
 
-    type SourceInput = String;
+    type SourceInput = AvDescriptor;
 
     #[inline]
     fn list_connected_devices() -> Vec<Self::SourceInput> {
@@ -36,14 +49,14 @@ where
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct AvDescriptor {
     /// This device's unique identifier.
-    pub device_identifier: AvSource,
+    pub device_identifier: String,
     /// Manufacturer-provided model information.
     pub device_model: String,
 }
 
 impl Descriptor for AvDescriptor {
     /// Veeeery unique. See `[AvSource]` for information.
-    type IdentiferTy = AvSource;
+    type IdentiferTy = String;
     type ModelTy = String;
 
     #[inline]
@@ -57,16 +70,13 @@ impl Descriptor for AvDescriptor {
     }
 }
 
-pub type AvDevice = (); // note: is this the same as AvStream under AVFoundation?
+pub type AvDevice = Retained<CidreCaptureDevice>;
 pub type AvBuffer<'appl_internal_buf> = &'appl_internal_buf [u8];
-pub type AvStream = ();
+pub type AvStream = Retained<CidreSession>;
 
 /// Since a `Source` must be unique on the system, we use a device's `uniqueID`
 /// from AVFoundation. This is just a string.
-///
-/// We don't expect users to know it and should warn them if they try to
-/// instantiate a device using the `CaptureDevice::new()` associated function.
-pub type AvSource = String;
+pub(crate) type AvSource = ();
 
 // TODO: make this actual image metadata somehow.
 pub type AvMetadata = String;
@@ -74,15 +84,14 @@ pub type AvMetadata = String;
 /// A capture device from AVFoundation.
 ///
 /// Note that AVFoundation does not use paths to describe these devices, and
-/// finding them as a user is difficult. As such, avoid using the `new()`
-/// function to create this object.
+/// finding them as a user is difficult.
 ///
-/// Instead, get a list of identifiers from the `AvBackend`, or use the
-/// `new_first()` function if you only need one device.
+/// Make sure to use the `AvBackend::list_available_devices` method to make an
+/// AvSource.
 pub type AvVideoCaptureDevice = VideoCapture<AvDescriptor, AvDevice, AvSource, AvStream>;
 
 impl Connection<'_, AvSource> for AvVideoCaptureDevice {
-    type Source = AvSource;
+    type Source = AvDescriptor;
 
     #[inline]
     fn new(source: Self::Source) -> Result<Self, ConnectionError> {

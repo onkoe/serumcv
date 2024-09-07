@@ -9,4 +9,3 @@ pub(super) enum AVAuthorizationStatus {
     Denied,
     Authorized,
 }
-
