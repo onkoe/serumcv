@@ -20,4 +20,15 @@
 //     }
 // }
 
-fn main() {}
+use serumcv_video_capture::backends::avfoundation::AvBackend;
+use serumcv_video_capture::prelude::*;
+
+fn main() {
+    list_devices();
+}
+
+#[expect(clippy::print_stdout)]
+#[expect(clippy::use_debug)]
+fn list_devices() {
+    println!("{:#?}", AvBackend::list_connected_devices());
+}
